@@ -9,13 +9,13 @@ from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
 # Directory paths
-TRAIN_PATH = '/home/tvy5242/EHR_fl/A_Experiment/DATA/train'
-RESULT_DIR = '/home/tvy5242/EHR_fl/A_Experiment/RESULT/standalone'
+TRAIN_PATH = ''
+RESULT_DIR = ''
 
 # Root directories for different data distributions (must match the structure used in data partitioning)
 POW_PATH   = os.path.join(TRAIN_PATH, 'POW')
-ECS_PATH   = os.path.join(TRAIN_PATH, 'ECS')
-PECS_PATH  = os.path.join(TRAIN_PATH, 'PECS')
+ECS_PATH   = os.path.join(TRAIN_PATH, 'BCS')
+PECS_PATH  = os.path.join(TRAIN_PATH, 'ICS')
 
 NUM_CLIENTS = 10       # Number of clients for each distribution
 NUM_EPOCHS  = 20       # Number of epochs per client
@@ -23,8 +23,8 @@ BATCH_SIZE  = 32       # Batch size
 
 # Learning rates for different datasets
 learning_rates = {
-    "FashionMNIST": 0.0003,
-    "CIFAR10":      0.0003
+    "FashionMNIST": 0.0001,
+    "CIFAR10":      0.0005
 }
 
 ########################################
