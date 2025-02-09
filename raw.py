@@ -10,7 +10,7 @@ import os
 from torchvision.datasets import FashionMNIST, CIFAR10
 from torchvision import transforms
 
-RAW_DATA_ROOT = "/home/tvy5242/EHR_fl/A_Experiment/DATA/raw"
+RAW_DATA_ROOT = ""
 
 def download_raw_datasets():
     os.makedirs(RAW_DATA_ROOT, exist_ok=True)
