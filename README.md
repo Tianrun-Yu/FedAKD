@@ -5,7 +5,7 @@
 2. **Download raw data**:
    ```bash
    python3 raw.py
-3.**Partition data into clients**: 
+3. **Partition data into clients**: 
    ```bash
    python3 devide.py
 4. **Train standalone**:
