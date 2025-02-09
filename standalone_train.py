@@ -8,34 +8,34 @@ from torch.utils.data import TensorDataset, DataLoader
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
-# 路径设置
+# Directory paths
 TRAIN_PATH = '/home/tvy5242/EHR_fl/A_Experiment/DATA/train'
 RESULT_DIR = '/home/tvy5242/EHR_fl/A_Experiment/RESULT/standalone'
 
-# 各种数据分布存放的根目录（需与数据划分时的目录结构一致）
+# Root directories for different data distributions (must match the structure used in data partitioning)
 POW_PATH   = os.path.join(TRAIN_PATH, 'POW')
 ECS_PATH   = os.path.join(TRAIN_PATH, 'ECS')
 PECS_PATH  = os.path.join(TRAIN_PATH, 'PECS')
 
-NUM_CLIENTS = 10       # 每个分布下客户端数量
-NUM_EPOCHS  = 20       # 每个客户端训练的轮数
-BATCH_SIZE  = 32       # 批次大小
+NUM_CLIENTS = 10       # Number of clients for each distribution
+NUM_EPOCHS  = 20       # Number of epochs per client
+BATCH_SIZE  = 32       # Batch size
 
-# 定义不同数据集使用的学习率
+# Learning rates for different datasets
 learning_rates = {
     "FashionMNIST": 0.0003,
-    "CIFAR10": 0.0003
+    "CIFAR10":      0.0003
 }
 
 ########################################
-# 定义简单的 CNN 模型（适用于 10 类分类）
+# Define a simple CNN model (for 10-class classification)
 ########################################
 class SimpleCNN(nn.Module):
     def __init__(self, in_channels, img_size, num_classes=10):
         """
-        :param in_channels: 输入通道数（1 或 3）
-        :param img_size: (高度, 宽度)
-        :param num_classes: 类别数，默认为 10
+        :param in_channels: number of input channels (1 or 3)
+        :param img_size: (height, width)
+        :param num_classes: number of classes, default 10
         """
         super(SimpleCNN, self).__init__()
         self.conv1 = nn.Conv2d(in_channels, 32, kernel_size=3, padding=1)
@@ -43,10 +43,10 @@ class SimpleCNN(nn.Module):
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
         self.bn2   = nn.BatchNorm2d(64)
         self.pool  = nn.MaxPool2d(2, 2)
-        # 经过两次 2×2 池化后，高宽分别缩小为原来的 1/4
+        # After two 2×2 poolings, height and width are each reduced by a factor of 4
         feature_h = img_size[0] // 4
         feature_w = img_size[1] // 4
-        self.fc    = nn.Linear(64 * feature_h * feature_w, num_classes)
+        self.fc   = nn.Linear(64 * feature_h * feature_w, num_classes)
     
     def forward(self, x):
         x = self.pool(torch.relu(self.bn1(self.conv1(x))))
@@ -59,12 +59,12 @@ def get_model(in_channels, img_size, num_classes=10):
     return SimpleCNN(in_channels, img_size, num_classes)
 
 ########################################
-# 数据加载与预处理函数
+# Data loading and preprocessing
 ########################################
 def load_client_data_labels(base_dir, client_id):
     """
-    加载指定客户端的数据和标签。
-    假定每个客户端文件夹下有 data.npy 和 labels.npy
+    Load data and labels for the specified client.
+    It is assumed each client directory has data.npy and labels.npy.
     """
     client_dir = os.path.join(base_dir, f'client_{client_id}')
     data_path   = os.path.join(client_dir, 'data.npy')
@@ -78,9 +78,9 @@ def load_client_data_labels(base_dir, client_id):
 
 def preprocess_data(data):
     """
-    将数据转为 CNN 可用的格式：
-      - 若数据形状为 (N, H, W)，则添加通道维度，变为 (N, 1, H, W)；
-      - 若数据形状为 (N, H, W, 3)，则转换为 (N, 3, H, W)。
+    Convert data to a format usable by a CNN:
+      - If the shape is (N, H, W), add a channel dimension -> (N, 1, H, W).
+      - If the shape is (N, H, W, 3), transpose to (N, 3, H, W).
     """
     if len(data.shape) == 3:
         # (N, H, W)
@@ -91,21 +91,21 @@ def preprocess_data(data):
     return data.astype(np.float32)
 
 ########################################
-# 客户端模型训练并返回每个 epoch 的测试准确率
+# Client training and returning per-epoch test accuracy
 ########################################
 def train_and_evaluate_client(data, labels, device,
                               num_epochs=NUM_EPOCHS,
                               batch_size=BATCH_SIZE,
                               lr=0.001):
     """
-    在单个客户端数据上进行训练，返回长度为 num_epochs 的测试准确率列表。
-    每个 epoch 结束后在测试集上做评估。
+    Train on a single client's data, return a list of test accuracies of length num_epochs.
+    The test set is evaluated after each epoch.
     """
-    # 划分训练/测试集 (80% / 20%)
+    # Split train/test  (80% / 20%)
     X_train, X_test, y_train, y_test = train_test_split(
         data, labels, test_size=0.2, random_state=42, shuffle=True
     )
-    # 转为 torch 张量
+    # Convert to torch tensors
     X_train = torch.tensor(X_train)
     y_train = torch.tensor(y_train, dtype=torch.long)
     X_test  = torch.tensor(X_test)
@@ -117,16 +117,16 @@ def train_and_evaluate_client(data, labels, device,
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     test_loader  = DataLoader(test_dataset,  batch_size=batch_size, shuffle=False)
     
-    # 获取输入图像形状
+    # Obtain input shape
     _, C, H, W = X_train.shape
     model = get_model(C, (H, W), num_classes=10).to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=lr)
     
-    epoch_acc_list = []  # 用于记录每个 epoch 的测试准确率
+    epoch_acc_list = []  # record test accuracy for each epoch
     
     for epoch in range(num_epochs):
-        # ---- 训练阶段 ----
+        # ---- Training phase ----
         model.train()
         for batch_x, batch_y in train_loader:
             batch_x = batch_x.to(device)
@@ -137,7 +137,7 @@ def train_and_evaluate_client(data, labels, device,
             loss.backward()
             optimizer.step()
         
-        # ---- 测试阶段 ----
+        # ---- Testing phase ----
         model.eval()
         correct = 0
         total   = 0
@@ -152,17 +152,17 @@ def train_and_evaluate_client(data, labels, device,
         acc = correct / total if total > 0 else 0.0
         epoch_acc_list.append(acc)
     
-    return epoch_acc_list  # 返回该客户端所有 epoch 的测试准确率
+    return epoch_acc_list
 
 ########################################
-# 主训练流程：遍历数据集、分布、客户端
-# 并将所有结果记录到一个 txt 文件中
+# Main training flow: iterate over datasets, distributions, clients
+# and record all results to one txt file
 ########################################
 def standalone_cnn_training():
     os.makedirs(RESULT_DIR, exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    # 定义各分布的根目录生成方式（与数据划分时的目录结构对应）
+    # Distribution root directories (matching data partition structure)
     distributions = {
         'POW':      lambda ds: os.path.join(POW_PATH, ds),
         'ECS_C5':   lambda ds: os.path.join(ECS_PATH, 'C5', ds),
@@ -171,16 +171,16 @@ def standalone_cnn_training():
         'PECS_C10': lambda ds: os.path.join(PECS_PATH, 'C10', ds)
     }
     
-    # 待实验的数据集名称（对应划分时文件夹名称）
+    # Dataset names (matching folder names used in partitioning)
     datasets_list = ['FashionMNIST', 'CIFAR10']
     
-    # 用于保存最终统计结果，结构： results[ (dataset_name, dist_name) ] = (val1, val2, val3, val4)
-    # 其中 val1, val2 对应 "最后3轮平均准确率" 的均值和方差
-    #      val3, val4 对应 "最后3轮最大准确率" 的均值和方差
+    # Used to store final statistics. Structure: results[(dataset_name, dist_name)] = (val1, val2, val3, val4)
+    # where val1, val2 are the mean and std of the final 3-epoch average accuracy,
+    # and val3, val4 are the mean and std of the final 3-epoch max accuracy
     results = {}
     
     for dataset_name in datasets_list:
-        # 根据数据集获取对应学习率
+        # Get learning rate for this dataset
         lr = learning_rates.get(dataset_name, 0.001)
         print(f"\n===== Processing dataset: {dataset_name} (lr={lr}) =====")
         
@@ -188,50 +188,49 @@ def standalone_cnn_training():
             base_dir = base_dir_fn(dataset_name)
             print(f"  >> Distribution: {dist_name}")
             
-            # 用于保存当前分布下所有客户端的训练曲线 (num_clients, num_epochs)
-            # 每行：client_id, 每列：epoch
+            # Store the training curve for all clients (num_clients, num_epochs)
+            # Each row: client_id, each column: epoch
             all_clients_acc = []
             
             for client_id in range(NUM_CLIENTS):
                 data, labels = load_client_data_labels(base_dir, client_id)
                 if data is None or labels is None:
-                    print(f"    Warning: client_{client_id} 数据缺失于 {base_dir}")
-                    # 如果缺失，则给出一个全零的曲线
+                    print(f"    Warning: client_{client_id} is missing data under {base_dir}")
+                    # If missing, fill with zeros
                     all_clients_acc.append([0.0]*NUM_EPOCHS)
                     continue
-                # 预处理数据格式，保证适用于 CNN
+                # Preprocess data
                 data = preprocess_data(data)
                 
-                # 获取该客户端全部 epoch 的准确率列表
+                # Get per-epoch accuracy
                 epoch_acc_list = train_and_evaluate_client(data, labels, device, lr=lr)
                 all_clients_acc.append(epoch_acc_list)
             
-            # 转为 numpy 数组，形状 (NUM_CLIENTS, NUM_EPOCHS)
+            # Convert to numpy array, shape (NUM_CLIENTS, NUM_EPOCHS)
             all_clients_acc = np.array(all_clients_acc)
             
-            # 对每个 epoch，先求"平均准确率" (10个client平均)，再求"最大准确率" (10个client里最大)
-            # 形状 (NUM_EPOCHS,)
+            # For each epoch, compute average accuracy (over 10 clients) and max accuracy (among 10 clients)
+            # Shape (NUM_EPOCHS,)
             mean_acc_each_epoch = np.mean(all_clients_acc, axis=0)
             max_acc_each_epoch  = np.max(all_clients_acc,  axis=0)
             
-            # 取最后 3 个 epoch 的平均准确率 => mean_acc_each_epoch[-3:]
-            last3_mean_acc = mean_acc_each_epoch[-3:]  # 形如 [a, b, c]
-            # 计算 3 个值的均值与标准差
+            # Take the final 3 epochs of average accuracy => mean_acc_each_epoch[-3:]
+            last3_mean_acc = mean_acc_each_epoch[-3:]
             avg3_mean_acc  = np.mean(last3_mean_acc)
             std3_mean_acc  = np.std(last3_mean_acc)
             
-            # 取最后 3 个 epoch 的最大准确率 => max_acc_each_epoch[-3:]
-            last3_max_acc = max_acc_each_epoch[-3:]    # 形如 [a, b, c]
+            # Take the final 3 epochs of max accuracy => max_acc_each_epoch[-3:]
+            last3_max_acc = max_acc_each_epoch[-3:]
             avg3_max_acc  = np.mean(last3_max_acc)
             std3_max_acc  = np.std(last3_max_acc)
             
-            # 记录到 results 字典
+            # Store in results dictionary
             results[(dataset_name, dist_name)] = (
-                avg3_mean_acc, std3_mean_acc,  # 最后3轮平均准确率(均值,方差)
-                avg3_max_acc,  std3_max_acc    # 最后3轮最大准确率(均值,方差)
+                avg3_mean_acc, std3_mean_acc,  # final 3-epoch average accuracy (mean, std)
+                avg3_max_acc,  std3_max_acc    # final 3-epoch max accuracy (mean, std)
             )
     
-    # === 所有结果写入一个 txt 文件 ===
+    # === Write results to a single txt file ===
     final_result_file = os.path.join(RESULT_DIR, "final_results.txt")
     with open(final_result_file, "w") as f:
         f.write("Dataset, Distribution, last3_AvgAcc(mean±std), last3_MaxAcc(mean±std)\n")
@@ -242,7 +241,8 @@ def standalone_cnn_training():
                         f"{avg3_mean_acc:.4f}±{std3_mean_acc:.4f}, "
                         f"{avg3_max_acc:.4f}±{std3_max_acc:.4f}\n")
                 f.write(line)
-    print(f"\n>>> 所有分布的最终结果已保存到：{final_result_file}")
+    print(f"\n>>> All final results have been saved to: {final_result_file}")
+
 
 if __name__ == '__main__':
     standalone_cnn_training()
